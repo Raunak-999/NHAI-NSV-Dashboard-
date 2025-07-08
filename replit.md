@@ -119,7 +119,11 @@ The application is designed to be easily deployable on various platforms while m
 
 ```
 Changelog:
-- July 08, 2025. Initial setup
+- July 08, 2025. Initial setup with complete database schema and basic components
+- July 08, 2025. Added comprehensive sample data and fully functional backend
+- July 08, 2025. Fixed frontend Select component issues and database integration
+- July 08, 2025. Created sample Excel file for testing upload functionality
+- July 08, 2025. Backend fully connected and functional with PostgreSQL database
 ```
 
 ## User Preferences

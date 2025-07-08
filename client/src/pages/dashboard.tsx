@@ -9,7 +9,11 @@ import { InteractiveMap } from "@/components/interactive-map";
 import { ChartsSection } from "@/components/charts-section";
 import { DataTable } from "@/components/data-table";
 import { DashboardStats, MapFilters } from "@/types/nsv";
-import { Construction, Bell, User, Menu, Clock, Activity } from "lucide-react";
+import { Construction, Bell, User, Menu, Clock, Activity, Download, FileText, BarChart3, MapPin, Smartphone } from "lucide-react";
+import { RealTimeStatus } from "@/components/real-time-status";
+import { MobileFieldMode } from "@/components/mobile-field-mode";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function Dashboard() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -124,33 +128,216 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* Real-time Status Bar */}
+      <div className="bg-white border-b border-gray-200 px-4 py-2">
+        <div className="max-w-7xl mx-auto">
+          <RealTimeStatus />
+        </div>
+      </div>
+
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Stats Cards */}
-        <StatsCards stats={stats} isLoading={statsLoading} />
+        <div className="space-y-6">
+          {/* Stats Cards */}
+          <StatsCards stats={stats} isLoading={statsLoading} />
 
-        {/* Main Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-          {/* Left Column - Controls */}
-          <div className="lg:col-span-1 space-y-6">
-            <UploadZone />
-            <FilterControls
-              filters={filters}
-              onFiltersChange={setFilters}
-              onApplyFilters={handleApplyFilters}
-            />
-            <AlertsPanel />
+          {/* Action Buttons */}
+          <div className="flex flex-wrap gap-4">
+            <Button className="flex items-center gap-2">
+              <Download className="h-4 w-4" />
+              Export Report
+            </Button>
+            <Button variant="outline" className="flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              Generate Summary
+            </Button>
+            <Button variant="outline" className="flex items-center gap-2">
+              <BarChart3 className="h-4 w-4" />
+              Analytics
+            </Button>
           </div>
 
-          {/* Right Column - Map and Charts */}
-          <div className="lg:col-span-2 space-y-6">
-            <InteractiveMap segments={segments || []} isLoading={segmentsLoading} />
-            <ChartsSection stats={stats} isLoading={statsLoading} />
-          </div>
+          {/* Main Dashboard Tabs */}
+          <Tabs defaultValue="overview" className="w-full">
+            <TabsList className="grid w-full grid-cols-5">
+              <TabsTrigger value="overview" className="flex items-center gap-2">
+                <BarChart3 className="h-4 w-4" />
+                Overview
+              </TabsTrigger>
+              <TabsTrigger value="map" className="flex items-center gap-2">
+                <MapPin className="h-4 w-4" />
+                Interactive Map
+              </TabsTrigger>
+              <TabsTrigger value="upload" className="flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                Data Upload
+              </TabsTrigger>
+              <TabsTrigger value="field" className="flex items-center gap-2">
+                <Smartphone className="h-4 w-4" />
+                Field Mode
+              </TabsTrigger>
+              <TabsTrigger value="alerts" className="flex items-center gap-2">
+                <Bell className="h-4 w-4" />
+                Alert Center
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="overview" className="space-y-6">
+              {/* Filter Controls */}
+              <FilterControls
+                filters={filters}
+                onFiltersChange={setFilters}
+                onApplyFilters={handleApplyFilters}
+              />
+
+              {/* Charts Section */}
+              <ChartsSection stats={stats} isLoading={statsLoading} />
+
+              {/* Content Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Left: Data Table */}
+                <div className="lg:col-span-2">
+                  <DataTable segments={segments || []} isLoading={segmentsLoading} />
+                </div>
+
+                {/* Right: Alerts Panel */}
+                <div className="lg:col-span-1">
+                  <AlertsPanel />
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="map" className="space-y-6">
+              {/* Filter Controls */}
+              <FilterControls
+                filters={filters}
+                onFiltersChange={setFilters}
+                onApplyFilters={handleApplyFilters}
+              />
+
+              {/* Interactive Map - Full Width */}
+              <InteractiveMap segments={segments || []} isLoading={segmentsLoading} />
+
+              {/* Map Controls Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Map Controls & Legend</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 bg-green-500 rounded"></div>
+                      <span className="text-sm">Excellent (Within limits)</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 bg-yellow-500 rounded"></div>
+                      <span className="text-sm">Good (60-80% limit)</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 bg-orange-500 rounded"></div>
+                      <span className="text-sm">Fair (80-100% limit)</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 bg-red-500 rounded"></div>
+                      <span className="text-sm">Critical (Exceeds limit)</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="upload" className="space-y-6">
+              {/* Upload Zone */}
+              <UploadZone />
+
+              {/* Upload Instructions */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Upload Instructions</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <h4 className="font-medium mb-2">Required Excel Columns:</h4>
+                      <ul className="text-sm space-y-1 text-muted-foreground">
+                        <li>• NH_Number (Highway identifier)</li>
+                        <li>• Chainage_Start & Chainage_End</li>
+                        <li>• Lane (L1, L2, R1, R2, etc.)</li>
+                        <li>• Latitude & Longitude</li>
+                        <li>• Roughness_BI (mm/km)</li>
+                        <li>• Rut_Depth (mm)</li>
+                        <li>• Crack_Area (%)</li>
+                        <li>• Ravelling (%)</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <h4 className="font-medium mb-2">Processing Pipeline:</h4>
+                      <ul className="text-sm space-y-1 text-muted-foreground">
+                        <li>• Data validation & parsing</li>
+                        <li>• Highway segment creation</li>
+                        <li>• GPS coordinate mapping</li>
+                        <li>• Threshold analysis</li>
+                        <li>• Automatic alert generation</li>
+                        <li>• Real-time dashboard updates</li>
+                      </ul>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="field" className="space-y-6">
+              <MobileFieldMode />
+            </TabsContent>
+
+            <TabsContent value="alerts" className="space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <AlertsPanel />
+                
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Alert Thresholds</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="font-medium">Roughness BI:</span>
+                        <span className="text-red-600">≥ 2,400 mm/km</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="font-medium">Rut Depth:</span>
+                        <span className="text-red-600">≥ 5 mm</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="font-medium">Crack Area:</span>
+                        <span className="text-red-600">≥ 5%</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="font-medium">Ravelling:</span>
+                        <span className="text-red-600">≥ 1%</span>
+                      </div>
+                    </div>
+                    
+                    <div className="pt-4 border-t">
+                      <h5 className="font-medium mb-2">Alert Actions:</h5>
+                      <div className="space-y-2">
+                        <Button size="sm" className="w-full justify-start">
+                          Email Notifications
+                        </Button>
+                        <Button size="sm" variant="outline" className="w-full justify-start">
+                          SMS Alerts
+                        </Button>
+                        <Button size="sm" variant="outline" className="w-full justify-start">
+                          Generate Reports
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+          </Tabs>
         </div>
-
-        {/* Data Table */}
-        <DataTable segments={segments || []} isLoading={segmentsLoading} />
       </main>
 
       {/* Footer */}

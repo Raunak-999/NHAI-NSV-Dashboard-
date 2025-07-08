@@ -48,18 +48,34 @@ function processExcelData(buffer: Buffer) {
   const worksheet = workbook.Sheets[workbook.SheetNames[0]];
   const data = XLSX.utils.sheet_to_json(worksheet);
   
-  return data.map((row: any) => ({
-    nhNumber: row['NH_Number'] || row['Highway'],
-    chainageStart: parseFloat(row['Chainage_Start'] || row['Start_KM']),
-    chainageEnd: parseFloat(row['Chainage_End'] || row['End_KM']),
-    laneNumber: row['Lane'] || 'L1',
-    latitude: parseFloat(row['Latitude'] || row['Lat']),
-    longitude: parseFloat(row['Longitude'] || row['Long']),
-    roughnessBI: parseFloat(row['Roughness_BI'] || row['Roughness']),
-    rutDepth: parseFloat(row['Rut_Depth'] || row['RutDepth']),
-    crackArea: parseFloat(row['Crack_Area'] || row['CrackArea']),
-    ravelling: parseFloat(row['Ravelling']),
-  }));
+  console.log('Excel data sample:', data[0]); // Debug log
+  
+  return data.map((row: any) => {
+    // Handle multiple possible column name formats
+    const nhNumber = row['NH_Number'] || row['Highway'] || row['NH Number'] || row['nh_number'];
+    const chainageStart = parseFloat(row['Chainage_Start'] || row['Start_KM'] || row['Chainage Start'] || row['chainage_start'] || row['Start Chainage']);
+    const chainageEnd = parseFloat(row['Chainage_End'] || row['End_KM'] || row['Chainage End'] || row['chainage_end'] || row['End Chainage']);
+    const laneNumber = row['Lane'] || row['Lane_Number'] || row['lane'] || row['Lane Number'] || 'L1';
+    const latitude = parseFloat(row['Latitude'] || row['Lat'] || row['latitude'] || row['lat']);
+    const longitude = parseFloat(row['Longitude'] || row['Long'] || row['longitude'] || row['long'] || row['lng']);
+    const roughnessBI = parseFloat(row['Roughness_BI'] || row['Roughness'] || row['roughness'] || row['Roughness BI'] || row['roughness_bi']);
+    const rutDepth = parseFloat(row['Rut_Depth'] || row['RutDepth'] || row['Rut Depth'] || row['rut_depth'] || row['rutdepth']);
+    const crackArea = parseFloat(row['Crack_Area'] || row['CrackArea'] || row['Crack Area'] || row['crack_area'] || row['crackarea']);
+    const ravelling = parseFloat(row['Ravelling'] || row['ravelling']);
+
+    return {
+      nhNumber,
+      chainageStart,
+      chainageEnd,
+      laneNumber,
+      latitude,
+      longitude,
+      roughnessBI,
+      rutDepth,
+      crackArea,
+      ravelling,
+    };
+  }).filter(row => row.nhNumber && !isNaN(row.chainageStart) && !isNaN(row.chainageEnd));
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {

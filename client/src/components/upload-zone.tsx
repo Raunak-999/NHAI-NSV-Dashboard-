@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { CloudUpload, File, CheckCircle, AlertCircle } from "lucide-react";
+import { ProgressIndicator } from './progress-indicator';
 
 export function UploadZone() {
   const [isDragging, setIsDragging] = useState(false);
@@ -23,13 +24,21 @@ export function UploadZone() {
     },
     onSuccess: (data) => {
       toast({
-        title: "File uploaded successfully",
+        title: "✅ File uploaded successfully",
         description: `Processed: ${data.processed.segments} segments, ${data.processed.lanes} lanes, ${data.processed.alerts} alerts`,
       });
       queryClient.invalidateQueries({ queryKey: ['/api/segments'] });
       queryClient.invalidateQueries({ queryKey: ['/api/stats'] });
       queryClient.invalidateQueries({ queryKey: ['/api/alerts'] });
       setUploadProgress(0);
+      
+      // Show processing progress animation
+      setTimeout(() => {
+        toast({
+          title: "🔄 Dashboard updating",
+          description: "Real-time data refreshed with new segments",
+        });
+      }, 1000);
     },
     onError: (error: Error) => {
       toast({

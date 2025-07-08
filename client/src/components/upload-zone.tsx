@@ -30,14 +30,9 @@ export function UploadZone() {
       const formData = new FormData();
       formData.append('file', file);
       
-      // Create abort controller for timeout handling
+      // Create abort controller for user cancellation (no automatic timeout)
       abortControllerRef.current = new AbortController();
-      const timeoutId = setTimeout(() => {
-        if (abortControllerRef.current) {
-          abortControllerRef.current.abort();
-          throw new Error('Upload timeout after 60 seconds. Please try with a smaller file.');
-        }
-      }, 60000); // 60 second timeout
+      // Removed automatic timeout - let large files process as needed
 
       try {
         const startTime = Date.now();
@@ -52,7 +47,7 @@ export function UploadZone() {
           signal: abortControllerRef.current.signal,
         });
 
-        clearTimeout(timeoutId);
+        // No timeout to clear - processing continues until complete
 
         if (!response.ok) {
           const error = await response.json();
@@ -83,7 +78,7 @@ export function UploadZone() {
 
         return result;
       } catch (error) {
-        clearTimeout(timeoutId);
+        // Handle user cancellation or network errors
         setIsUploading(false);
         setUploadProgress(0);
         setUploadStage('');
@@ -121,9 +116,7 @@ export function UploadZone() {
       let errorMessage = error.message;
       
       // Provide specific error guidance
-      if (error.message.includes('timeout')) {
-        errorMessage = 'Upload timed out. Try a smaller file or check your connection.';
-      } else if (error.message.includes('too large')) {
+      if (error.message.includes('too large')) {
         errorMessage = 'File too large. Maximum size is 50MB.';
       } else if (error.message.includes('No valid data')) {
         errorMessage = 'No valid data found. Please check the Excel format using the debugger.';

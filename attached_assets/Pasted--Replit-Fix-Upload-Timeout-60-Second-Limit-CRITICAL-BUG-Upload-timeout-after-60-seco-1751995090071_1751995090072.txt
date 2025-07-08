@@ -1,0 +1,182 @@
+# Replit Fix: Upload Timeout - 60 Second Limit
+
+## 🚨 **CRITICAL BUG: Upload timeout after 60 seconds**
+
+The file upload is failing with timeout error. The system is taking too long to process the NSV Excel file.
+
+## 📋 **Current Error**
+```
+Upload timeout after 60 seconds. Please try with a smaller file.
+```
+
+## 🔧 **REQUIRED IMMEDIATE FIXES**
+
+### **1. Remove/Increase Timeout Limits**
+```javascript
+// In upload component, change timeout from 60 seconds to 5 minutes
+const UPLOAD_TIMEOUT = 300000; // 5 minutes instead of 60000
+
+// Or remove timeout completely for large files
+// Remove this line: setTimeout(() => { throw new Error('Upload timeout') }, 60000);
+```
+
+### **2. Optimize File Processing Speed**
+```javascript
+// Backend optimization needed:
+- Use streaming CSV parser instead of loading entire file
+- Implement batch database insertions (1000 rows at once)
+- Use database transactions for faster processing
+- Add connection pooling to prevent connection delays
+- Process data in chunks instead of row-by-row
+```
+
+### **3. Add Progress Streaming**
+```javascript
+// Replace timeout with real-time progress updates:
+- Use WebSocket or Server-Sent Events for progress updates
+- Show actual processing stages instead of timeout
+- Stream progress: "Row 1000/5000 processed..."
+- Allow user to see processing is working, not stuck
+```
+
+### **4. Frontend Upload Optimization**
+```javascript
+// Fix frontend upload handling:
+- Remove arbitrary 60-second timeout
+- Add file size validation before upload
+- Show processing time estimates
+- Add cancel button instead of timeout
+- Display current processing stage
+```
+
+## 🛠️ **Specific Code Changes Needed**
+
+### **Backend (server/routes/upload.js)**
+```javascript
+// REMOVE timeout limits
+// REMOVE: setTimeout(() => { throw new Error('Upload timeout') }, 60000);
+
+// ADD streaming processing
+const processFileInChunks = async (fileBuffer, chunkSize = 1000) => {
+  // Process file in chunks of 1000 rows
+  // Use bulk database operations
+  // Send progress updates to frontend
+};
+
+// ADD batch database operations
+const batchInsertSegments = async (segments) => {
+  // Insert multiple segments in single query
+  // Use PostgreSQL COPY command for fastest inserts
+  // Process in batches to prevent memory issues
+};
+```
+
+### **Frontend (client/src/components/upload-zone.tsx)**
+```javascript
+// REMOVE timeout error handling
+// REMOVE: setTimeout(() => setError('Upload timeout'), 60000);
+
+// ADD progress tracking
+const [processingStage, setProcessingStage] = useState('');
+const [rowsProcessed, setRowsProcessed] = useState(0);
+const [totalRows, setTotalRows] = useState(0);
+
+// ADD real-time progress updates
+useEffect(() => {
+  const eventSource = new EventSource('/api/upload-progress');
+  eventSource.onmessage = (event) => {
+    const progress = JSON.parse(event.data);
+    setProcessingStage(progress.stage);
+    setRowsProcessed(progress.rowsProcessed);
+    setTotalRows(progress.totalRows);
+  };
+}, []);
+```
+
+### **Database Optimization**
+```sql
+-- ADD these indexes for faster processing
+CREATE INDEX idx_segments_highway ON nsv_segments(highway_id);
+CREATE INDEX idx_lanes_segment ON lane_data(segment_id);
+CREATE INDEX idx_alerts_segment ON alerts(segment_id);
+
+-- USE bulk operations instead of individual inserts
+COPY nsv_segments FROM STDIN WITH CSV;
+COPY lane_data FROM STDIN WITH CSV;
+```
+
+## 📊 **Expected Performance After Fix**
+
+### **Target Processing Times:**
+- **Small file (100 rows)**: 2-5 seconds
+- **Medium file (1000 rows)**: 10-15 seconds  
+- **Large file (5000 rows)**: 30-60 seconds
+- **Very large file (10000 rows)**: 1-2 minutes
+
+### **Progress Display:**
+```
+Processing file... 
+├── Parsing CSV: 1,234/5,000 rows (25%)
+├── Saving segments: 234/1,234 segments (50%)
+├── Processing lanes: 1,872/9,872 lanes (75%)
+├── Generating alerts: 127 alerts created (100%)
+└── Complete! Ready to view dashboard
+```
+
+## 🎯 **Implementation Priority**
+
+### **Phase 1: URGENT (Fix timeout)**
+1. Remove 60-second timeout limit
+2. Add file size validation (reject files > 100MB)
+3. Implement basic progress tracking
+4. Add cancel button for long operations
+
+### **Phase 2: HIGH (Optimize performance)**
+1. Implement streaming file processing
+2. Add batch database operations
+3. Use connection pooling
+4. Optimize SQL queries
+
+### **Phase 3: MEDIUM (Improve UX)**
+1. Add real-time progress updates
+2. Show processing time estimates
+3. Add retry functionality
+4. Implement pause/resume uploads
+
+## 🔍 **Debug Requirements**
+
+Add these debug features:
+```javascript
+// Log processing performance
+console.log('Processing stage:', stage, 'Time:', Date.now() - startTime);
+
+// Monitor memory usage
+console.log('Memory usage:', process.memoryUsage());
+
+// Track database query performance
+console.log('Query time:', queryEndTime - queryStartTime);
+```
+
+## 📝 **Testing Checklist**
+
+After implementing fixes:
+- [ ] Upload 100-row file completes in under 10 seconds
+- [ ] Upload 1000-row file completes in under 30 seconds
+- [ ] Upload 5000-row file completes in under 2 minutes
+- [ ] Progress updates show every 2 seconds
+- [ ] No timeout errors for reasonable file sizes
+- [ ] Cancel button works during processing
+- [ ] Clear error messages for actual failures
+
+## 🚀 **Expected Result**
+
+Instead of timeout error, users should see:
+```
+✅ File uploaded successfully!
+✅ Processed 1,234 segments
+✅ Created 9,872 lane records  
+✅ Generated 127 alerts
+✅ Ready to view dashboard
+```
+
+**Please implement these fixes immediately to remove the 60-second timeout and optimize file processing performance.**

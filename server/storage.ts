@@ -133,7 +133,29 @@ export class DatabaseStorage implements IStorage {
 
   async bulkCreateLanes(insertLanes: InsertLane[]): Promise<Lane[]> {
     if (insertLanes.length === 0) return [];
-    return await db.insert(lanes).values(insertLanes).returning();
+    
+    try {
+      // For large batches, split into chunks to prevent timeouts
+      const chunkSize = 1000;
+      if (insertLanes.length > chunkSize) {
+        console.log(`Processing ${insertLanes.length} lanes in chunks of ${chunkSize}`);
+        const results: Lane[] = [];
+        
+        for (let i = 0; i < insertLanes.length; i += chunkSize) {
+          const chunk = insertLanes.slice(i, i + chunkSize);
+          const chunkResults = await db.insert(lanes).values(chunk).returning();
+          results.push(...chunkResults);
+          console.log(`Processed chunk ${Math.floor(i/chunkSize) + 1}/${Math.ceil(insertLanes.length/chunkSize)}`);
+        }
+        
+        return results;
+      } else {
+        return await db.insert(lanes).values(insertLanes).returning();
+      }
+    } catch (error) {
+      console.error('Error in bulkCreateLanes:', error);
+      throw error;
+    }
   }
 
   async getAlerts(filters?: {

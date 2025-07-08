@@ -333,17 +333,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`Organized into ${groupedData.size} segments`);
 
-      // Stage 3: Process segments in batches (40-90%)
-      console.log("Stage 3: Processing segments in batches...");
+      // Stage 3: Process segments in optimized batches (40-90%)
+      console.log("Stage 3: Processing segments in optimized batches...");
       const segments = Array.from(groupedData.values());
-      const batchSize = 10; // Process 10 segments at a time
+      const batchSize = 25; // Increased batch size for better performance
       let processedSegments = 0;
 
       for (let i = 0; i < segments.length; i += batchSize) {
         const batch = segments.slice(i, i + batchSize);
-        console.log(`Processing batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(segments.length/batchSize)} (${batch.length} segments)`);
+        const batchNumber = Math.floor(i/batchSize) + 1;
+        const totalBatches = Math.ceil(segments.length/batchSize);
+        
+        console.log(`Processing batch ${batchNumber}/${totalBatches} (${batch.length} segments) - ${((i/segments.length)*100).toFixed(1)}% complete`);
 
-        // Process batch with error handling
+        // Process batch with optimized error handling
         for (const segmentData of batch) {
           try {
             // Create or get highway
@@ -432,9 +435,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
 
-        // Add a small delay between batches to prevent overwhelming the database
+        // Reduced delay between batches for faster processing
         if (i + batchSize < segments.length) {
-          await new Promise(resolve => setTimeout(resolve, 50));
+          await new Promise(resolve => setTimeout(resolve, 10));
         }
       }
 

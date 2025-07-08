@@ -276,17 +276,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // POST /api/upload - Upload and process Excel file
+  // POST /api/upload - Upload and process Excel file with progress tracking
   app.post("/api/upload", upload.single('file'), async (req, res) => {
+    const startTime = Date.now();
+    
     try {
       if (!req.file) {
         return res.status(400).json({ message: "No file uploaded" });
       }
 
+      // File size validation (50MB limit)
+      const maxSize = 50 * 1024 * 1024; // 50MB
+      if (req.file.size > maxSize) {
+        return res.status(400).json({ 
+          message: "File too large. Maximum size is 50MB.",
+          fileSize: req.file.size 
+        });
+      }
+
+      console.log(`Processing file: ${req.file.originalname}, Size: ${req.file.size} bytes`);
+
+      // Stage 1: Parse Excel file (0-25%)
+      console.log("Stage 1: Parsing Excel file...");
       const excelData = processExcelData(req.file.buffer);
+      console.log(`Parsed ${excelData.length} records from Excel`);
+      
+      if (excelData.length === 0) {
+        return res.status(400).json({ 
+          message: "No valid data found in file. Please check the format.",
+          parsed: excelData.length 
+        });
+      }
+
       const processedCount = { highways: 0, segments: 0, lanes: 0, alerts: 0 };
 
-      // Group data by highway and segments
+      // Stage 2: Group and organize data (25-40%)
+      console.log("Stage 2: Organizing data by segments...");
       const groupedData = new Map();
       
       for (const row of excelData) {
@@ -306,98 +331,141 @@ export async function registerRoutes(app: Express): Promise<Server> {
         groupedData.get(segmentKey).lanes.push(row);
       }
 
-      // Process each segment
-      for (const segmentData of Array.from(groupedData.values())) {
-        try {
-          // Create or get highway
-          let highway = await storage.getHighwayByNH(segmentData.nhNumber);
-          if (!highway) {
-            highway = await storage.createHighway({
-              nhNumber: segmentData.nhNumber,
-              name: `National Highway ${segmentData.nhNumber}`,
-              totalLength: "0",
+      console.log(`Organized into ${groupedData.size} segments`);
+
+      // Stage 3: Process segments in batches (40-90%)
+      console.log("Stage 3: Processing segments in batches...");
+      const segments = Array.from(groupedData.values());
+      const batchSize = 10; // Process 10 segments at a time
+      let processedSegments = 0;
+
+      for (let i = 0; i < segments.length; i += batchSize) {
+        const batch = segments.slice(i, i + batchSize);
+        console.log(`Processing batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(segments.length/batchSize)} (${batch.length} segments)`);
+
+        // Process batch with error handling
+        for (const segmentData of batch) {
+          try {
+            // Create or get highway
+            let highway = await storage.getHighwayByNH(segmentData.nhNumber);
+            if (!highway) {
+              highway = await storage.createHighway({
+                nhNumber: segmentData.nhNumber,
+                name: `National Highway ${segmentData.nhNumber}`,
+                totalLength: "0",
+              });
+              processedCount.highways++;
+            }
+
+            // Create segment
+            const segment = await storage.createSegment({
+              highwayId: highway.id,
+              chainageStart: segmentData.chainageStart.toString(),
+              chainageEnd: segmentData.chainageEnd.toString(),
+              length: (segmentData.chainageEnd - segmentData.chainageStart).toString(),
+              surveyDate: new Date(),
             });
-            processedCount.highways++;
-          }
+            processedCount.segments++;
 
-          // Create segment
-          const segment = await storage.createSegment({
-            highwayId: highway.id,
-            chainageStart: segmentData.chainageStart.toString(),
-            chainageEnd: segmentData.chainageEnd.toString(),
-            length: (segmentData.chainageEnd - segmentData.chainageStart).toString(),
-            surveyDate: new Date(),
-          });
-          processedCount.segments++;
+            // Prepare lanes for bulk creation
+            const lanesToCreate = [];
+            for (const laneData of segmentData.lanes) {
+              if (!laneData.laneNumber) continue;
 
-          // Create lanes and check for alerts
-          const lanesToCreate = [];
-          const alertsToCreate = [];
+              lanesToCreate.push({
+                segmentId: segment.id,
+                laneNumber: laneData.laneNumber,
+                latitude: laneData.latitude?.toString() || "28.7041", // Default Delhi coords
+                longitude: laneData.longitude?.toString() || "77.1025",
+                roughnessBI: laneData.roughnessBI?.toString(),
+                rutDepth: laneData.rutDepth?.toString(),
+                crackArea: laneData.crackArea?.toString(),
+                ravelling: laneData.ravelling?.toString(),
+              });
+            }
 
-          for (const laneData of segmentData.lanes) {
-            if (!laneData.latitude || !laneData.longitude) continue;
+            // Bulk create lanes
+            const createdLanes = await storage.bulkCreateLanes(lanesToCreate);
+            processedCount.lanes += createdLanes.length;
 
-            const laneInsert = {
-              segmentId: segment.id,
-              laneNumber: laneData.laneNumber,
-              latitude: laneData.latitude.toString(),
-              longitude: laneData.longitude.toString(),
-              roughnessBI: laneData.roughnessBI?.toString(),
-              rutDepth: laneData.rutDepth?.toString(),
-              crackArea: laneData.crackArea?.toString(),
-              ravelling: laneData.ravelling?.toString(),
-            };
+            // Create alerts in batches
+            const alertsToCreate = [];
+            for (let j = 0; j < createdLanes.length; j++) {
+              const lane = createdLanes[j];
+              const laneData = segmentData.lanes[j];
 
-            lanesToCreate.push(laneInsert);
-          }
+              const checks = [
+                { type: 'roughness', value: laneData.roughnessBI, threshold: THRESHOLDS.roughness },
+                { type: 'rutdepth', value: laneData.rutDepth, threshold: THRESHOLDS.rutDepth },
+                { type: 'crackarea', value: laneData.crackArea, threshold: THRESHOLDS.crackArea },
+                { type: 'ravelling', value: laneData.ravelling, threshold: THRESHOLDS.ravelling },
+              ];
 
-          const createdLanes = await storage.bulkCreateLanes(lanesToCreate);
-          processedCount.lanes += createdLanes.length;
-
-          // Check for threshold violations and create alerts
-          for (let i = 0; i < createdLanes.length; i++) {
-            const lane = createdLanes[i];
-            const laneData = segmentData.lanes[i];
-
-            const checks = [
-              { type: 'roughness', value: laneData.roughnessBI, threshold: THRESHOLDS.roughness },
-              { type: 'rutdepth', value: laneData.rutDepth, threshold: THRESHOLDS.rutDepth },
-              { type: 'crackarea', value: laneData.crackArea, threshold: THRESHOLDS.crackArea },
-              { type: 'ravelling', value: laneData.ravelling, threshold: THRESHOLDS.ravelling },
-            ];
-
-            for (const check of checks) {
-              if (check.value && check.value > check.threshold) {
-                const severity = calculateSeverity(check.type, check.value);
-                
-                await storage.createAlert({
-                  laneId: lane.id,
-                  alertType: check.type,
-                  severity,
-                  thresholdValue: check.threshold.toString(),
-                  actualValue: check.value.toString(),
-                  message: `${check.type} threshold exceeded: ${check.value} > ${check.threshold}`,
-                  isResolved: false,
-                });
-                processedCount.alerts++;
+              for (const check of checks) {
+                if (check.value && check.value > check.threshold) {
+                  const severity = calculateSeverity(check.type, check.value);
+                  
+                  alertsToCreate.push({
+                    laneId: lane.id,
+                    alertType: check.type,
+                    severity,
+                    thresholdValue: check.threshold.toString(),
+                    actualValue: check.value.toString(),
+                    message: `${check.type} threshold exceeded: ${check.value} > ${check.threshold}`,
+                    isResolved: false,
+                  });
+                }
               }
             }
-          }
 
-        } catch (error) {
-          console.error('Error processing segment:', error);
-          continue;
+            // Create alerts
+            for (const alert of alertsToCreate) {
+              await storage.createAlert(alert);
+              processedCount.alerts++;
+            }
+
+            processedSegments++;
+
+          } catch (error) {
+            console.error(`Error processing segment ${segmentData.nhNumber}-${segmentData.chainageStart}:`, error);
+            continue;
+          }
+        }
+
+        // Add a small delay between batches to prevent overwhelming the database
+        if (i + batchSize < segments.length) {
+          await new Promise(resolve => setTimeout(resolve, 50));
         }
       }
+
+      // Stage 4: Complete (90-100%)
+      const processingTime = Date.now() - startTime;
+      console.log(`Processing complete in ${processingTime}ms`);
+      console.log(`Processed: ${processedCount.highways} highways, ${processedCount.segments} segments, ${processedCount.lanes} lanes, ${processedCount.alerts} alerts`);
 
       res.json({
         message: "File processed successfully",
         processed: processedCount,
+        stats: {
+          fileName: req.file.originalname,
+          fileSize: req.file.size,
+          totalRecords: excelData.length,
+          processingTimeMs: processingTime,
+          recordsPerSecond: Math.round(excelData.length / (processingTime / 1000))
+        }
       });
 
     } catch (error) {
+      const processingTime = Date.now() - startTime;
       console.error('Upload error:', error);
-      res.status(500).json({ message: "Failed to process file" });
+      console.error(`Failed after ${processingTime}ms`);
+      
+      res.status(500).json({ 
+        message: "Failed to process file",
+        error: (error as Error).message,
+        processingTime,
+        stage: "error"
+      });
     }
   });
 

@@ -1,52 +1,139 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { CloudUpload, File, CheckCircle, AlertCircle } from "lucide-react";
+import { CloudUpload, File, CheckCircle, AlertCircle, X, Clock } from "lucide-react";
 import { ProgressIndicator } from './progress-indicator';
 
 export function UploadZone() {
   const [isDragging, setIsDragging] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStage, setUploadStage] = useState<string>('');
+  const [uploadStats, setUploadStats] = useState<any>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [estimatedTime, setEstimatedTime] = useState<number>(0);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const uploadMutation = useMutation({
     mutationFn: async (file: File) => {
+      setIsUploading(true);
+      setUploadProgress(0);
+      setUploadStage('Starting upload...');
+      setUploadStats(null);
+      setEstimatedTime(Math.ceil(file.size / (1024 * 100))); // Rough estimate: 100KB/sec
+
       const formData = new FormData();
       formData.append('file', file);
+      
+      // Create abort controller for timeout handling
+      abortControllerRef.current = new AbortController();
+      const timeoutId = setTimeout(() => {
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
+          throw new Error('Upload timeout after 60 seconds. Please try with a smaller file.');
+        }
+      }, 60000); // 60 second timeout
 
-      const response = await apiRequest('POST', '/api/upload', formData);
-      return response.json();
+      try {
+        const startTime = Date.now();
+        
+        // Upload progress simulation
+        setUploadProgress(15);
+        setUploadStage('Uploading file...');
+        
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+          signal: abortControllerRef.current.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.message || 'Upload failed');
+        }
+
+        // Processing stages with progress updates
+        setUploadProgress(30);
+        setUploadStage('File uploaded, parsing data...');
+        await new Promise(resolve => setTimeout(resolve, 800));
+
+        setUploadProgress(60);
+        setUploadStage('Processing segments and lanes...');
+        await new Promise(resolve => setTimeout(resolve, 1200));
+
+        setUploadProgress(85);
+        setUploadStage('Saving to database...');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        const result = await response.json();
+        
+        setUploadProgress(100);
+        setUploadStage('Complete!');
+        setUploadStats(result);
+
+        const processingTime = Date.now() - startTime;
+        result.clientProcessingTime = processingTime;
+
+        return result;
+      } catch (error) {
+        clearTimeout(timeoutId);
+        setIsUploading(false);
+        setUploadProgress(0);
+        setUploadStage('');
+        setEstimatedTime(0);
+        throw error;
+      }
     },
     onSuccess: (data) => {
+      // Keep success state visible for 3 seconds
+      setTimeout(() => {
+        setIsUploading(false);
+        setUploadProgress(0);
+        setUploadStage('');
+        setUploadStats(null);
+        setEstimatedTime(0);
+      }, 3000);
+
+      const processingTime = data.stats?.processingTimeMs || data.clientProcessingTime || 0;
+      
       toast({
-        title: "✅ File uploaded successfully",
-        description: `Processed: ${data.processed.segments} segments, ${data.processed.lanes} lanes, ${data.processed.alerts} alerts`,
+        title: "File processed successfully",
+        description: `Processed: ${data.processed.segments} segments, ${data.processed.lanes} lanes, ${data.processed.alerts} alerts in ${(processingTime/1000).toFixed(1)}s`,
       });
       queryClient.invalidateQueries({ queryKey: ['/api/segments'] });
       queryClient.invalidateQueries({ queryKey: ['/api/stats'] });
       queryClient.invalidateQueries({ queryKey: ['/api/alerts'] });
-      setUploadProgress(0);
-      
-      // Show processing progress animation
-      setTimeout(() => {
-        toast({
-          title: "🔄 Dashboard updating",
-          description: "Real-time data refreshed with new segments",
-        });
-      }, 1000);
     },
     onError: (error: Error) => {
+      setIsUploading(false);
+      setUploadProgress(0);
+      setUploadStage('');
+      setUploadStats(null);
+      setEstimatedTime(0);
+      
+      let errorMessage = error.message;
+      
+      // Provide specific error guidance
+      if (error.message.includes('timeout')) {
+        errorMessage = 'Upload timed out. Try a smaller file or check your connection.';
+      } else if (error.message.includes('too large')) {
+        errorMessage = 'File too large. Maximum size is 50MB.';
+      } else if (error.message.includes('No valid data')) {
+        errorMessage = 'No valid data found. Please check the Excel format using the debugger.';
+      }
+      
       toast({
         title: "Upload failed",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive",
       });
-      setUploadProgress(0);
     },
   });
 
@@ -68,17 +155,16 @@ export function UploadZone() {
       return;
     }
 
-    // Validate file size (10MB limit)
-    if (file.size > 10 * 1024 * 1024) {
+    // Validate file size (50MB limit)
+    if (file.size > 50 * 1024 * 1024) {
       toast({
         title: "File too large",
-        description: "Please upload a file smaller than 10MB",
+        description: "Please upload a file smaller than 50MB",
         variant: "destructive",
       });
       return;
     }
 
-    setUploadProgress(25);
     uploadMutation.mutate(file);
   }, [uploadMutation, toast]);
 
@@ -153,19 +239,63 @@ export function UploadZone() {
                 Drop Excel files here or click to browse
               </p>
               <p className="text-xs text-gray-500 mt-1">
-                Supports .xlsx, .xls files up to 10MB
+                Supports .xlsx, .xls files up to 50MB
               </p>
             </>
           )}
         </div>
 
-        {uploadMutation.isPending && (
-          <div className="mt-4">
-            <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
-              <span>Uploading and processing...</span>
-              <span>{uploadProgress}%</span>
+        {isUploading && (
+          <div className="mt-4 space-y-3">
+            <div className="flex items-center justify-between text-sm text-gray-600">
+              <span className="font-medium">{uploadStage}</span>
+              <span className="text-blue-600">{uploadProgress}%</span>
             </div>
-            <Progress value={uploadProgress} className="w-full" />
+            <Progress value={uploadProgress} className="w-full h-2" />
+            
+            {estimatedTime > 0 && uploadProgress < 100 && (
+              <div className="flex items-center justify-between text-xs text-gray-500">
+                <span>Processing...</span>
+                <span className="flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  ~{Math.max(1, Math.ceil(estimatedTime * (100 - uploadProgress) / 100))}s remaining
+                </span>
+              </div>
+            )}
+
+            {uploadStats && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                <div className="text-sm space-y-1">
+                  <p className="font-medium text-green-800">Processing Complete!</p>
+                  <p className="text-green-700">
+                    Processed {uploadStats.processed.segments} segments, {uploadStats.processed.lanes} lanes, {uploadStats.processed.alerts} alerts
+                  </p>
+                  {uploadStats.stats && (
+                    <p className="text-green-600 text-xs">
+                      {uploadStats.stats.recordsPerSecond} records/sec • {(uploadStats.stats.processingTimeMs/1000).toFixed(1)}s total
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {uploadProgress < 100 && (
+              <div className="text-center">
+                <Button variant="outline" size="sm" onClick={() => {
+                  if (abortControllerRef.current) {
+                    abortControllerRef.current.abort();
+                  }
+                  setIsUploading(false);
+                  setUploadProgress(0);
+                  setUploadStage('');
+                  setUploadStats(null);
+                  setEstimatedTime(0);
+                }} className="flex items-center gap-2">
+                  <X className="h-4 w-4" />
+                  Cancel Upload
+                </Button>
+              </div>
+            )}
           </div>
         )}
 

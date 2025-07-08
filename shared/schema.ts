@@ -25,12 +25,12 @@ export const lanes = pgTable("lanes", {
   id: serial("id").primaryKey(),
   segmentId: integer("segment_id").references(() => segments.id).notNull(),
   laneNumber: varchar("lane_number", { length: 10 }).notNull(), // L1, L2, L3, L4, R1, R2, R3, R4
-  latitude: decimal("latitude", { precision: 10, scale: 8 }).notNull(),
-  longitude: decimal("longitude", { precision: 11, scale: 8 }).notNull(),
-  roughnessBI: decimal("roughness_bi", { precision: 8, scale: 2 }),
-  rutDepth: decimal("rut_depth", { precision: 6, scale: 2 }),
-  crackArea: decimal("crack_area", { precision: 5, scale: 2 }),
-  ravelling: decimal("ravelling", { precision: 5, scale: 2 }),
+  latitude: varchar("latitude", { length: 20 }).notNull(), // Store as string to avoid precision issues
+  longitude: varchar("longitude", { length: 20 }).notNull(), // Store as string to avoid precision issues  
+  roughnessBI: varchar("roughness_bi", { length: 20 }), // Store as string for flexibility
+  rutDepth: varchar("rut_depth", { length: 20 }), // Store as string for flexibility
+  crackArea: varchar("crack_area", { length: 20 }), // Store as string for flexibility
+  ravelling: varchar("ravelling", { length: 20 }), // Store as string for flexibility
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -39,8 +39,8 @@ export const alerts = pgTable("alerts", {
   laneId: integer("lane_id").references(() => lanes.id).notNull(),
   alertType: varchar("alert_type", { length: 50 }).notNull(), // 'roughness', 'rutdepth', 'crackarea', 'ravelling'
   severity: varchar("severity", { length: 20 }).notNull(), // 'critical', 'poor', 'fair', 'good', 'excellent'
-  thresholdValue: decimal("threshold_value", { precision: 8, scale: 2 }).notNull(),
-  actualValue: decimal("actual_value", { precision: 8, scale: 2 }).notNull(),
+  thresholdValue: varchar("threshold_value", { length: 20 }).notNull(),
+  actualValue: varchar("actual_value", { length: 20 }).notNull(),
   message: text("message"),
   isResolved: boolean("is_resolved").default(false),
   createdAt: timestamp("created_at").defaultNow(),

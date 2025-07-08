@@ -1,0 +1,134 @@
+# Replit Fix Prompt - File Processing Stuck at 25%
+
+## 🚨 **URGENT BUG FIX NEEDED**
+
+My NHAI NSV Dashboard file upload is stuck at 25% processing and never completes. The file uploads but gets stuck during parsing.
+
+## 📋 **Current Problem**
+
+- File upload starts successfully
+- Progress bar shows "Processing file..." at 25%
+- Process hangs indefinitely and never completes
+- No error messages shown to user
+- Backend likely timing out or encountering parsing errors
+
+## 🔧 **Required Fixes**
+
+### **1. Frontend Progress Handling**
+- Add proper timeout handling (30 seconds max)
+- Show detailed progress stages: "Uploading... Parsing... Saving... Complete"
+- Add error handling for failed uploads
+- Add cancel button for stuck uploads
+- Show file size and processing time estimates
+
+### **2. Backend Optimization**
+- Add streaming file processing instead of loading entire file into memory
+- Implement batch processing for large CSV files (process 100 rows at a time)
+- Add progress callbacks to frontend during processing
+- Optimize database insertions with batch queries
+- Add proper error logging and recovery
+
+### **3. Database Performance**
+- Use database transactions properly
+- Add connection pooling
+- Implement bulk inserts instead of individual row inserts
+- Add proper indexes for faster queries
+- Handle database connection timeouts
+
+### **4. File Processing Logic**
+- Add file size validation (reject files > 50MB)
+- Implement streaming CSV parser instead of loading entire file
+- Add progress tracking for each processing stage
+- Validate CSV structure before processing all rows
+- Add memory usage monitoring
+
+## 🛠️ **Specific Code Requirements**
+
+### **Frontend Updates Needed:**
+```javascript
+// Add these features to file upload component:
+- Real-time progress updates with WebSocket
+- Timeout handling after 30 seconds
+- Detailed progress messages
+- Cancel upload functionality
+- Error display with retry option
+- File validation before upload
+```
+
+### **Backend API Updates Needed:**
+```javascript
+// Fix these issues in upload endpoint:
+- Streaming file processing
+- Batch database operations
+- Progress callbacks to frontend
+- Memory leak prevention
+- Proper error handling
+- Connection timeout handling
+```
+
+### **Database Optimization:**
+```sql
+-- Add these improvements:
+- Batch insert operations
+- Proper transaction handling
+- Connection pooling
+- Query optimization
+- Index creation for performance
+```
+
+## 📊 **Expected Behavior After Fix**
+
+### **Progress Flow:**
+1. **0%** - "Starting upload..."
+2. **25%** - "File uploaded, parsing CSV..."
+3. **50%** - "Processing segments..."
+4. **75%** - "Saving to database..."
+5. **100%** - "Complete! Processed X segments, Y lanes, Z alerts"
+
+### **Error Handling:**
+- Show specific error messages for different failure types
+- Provide retry button for failed uploads
+- Display file validation errors before processing
+- Show timeout warnings with cancel option
+
+### **Performance Targets:**
+- Process 1000 row CSV in under 10 seconds
+- Handle files up to 50MB
+- Show progress updates every 2 seconds
+- Timeout after 30 seconds with clear error message
+
+## 🎯 **Testing Requirements**
+
+After fixing, the system should:
+1. **Upload small file (100 rows)** - Complete in under 5 seconds
+2. **Upload medium file (1000 rows)** - Complete in under 15 seconds
+3. **Upload large file (5000 rows)** - Complete in under 30 seconds
+4. **Handle invalid CSV** - Show clear error message
+5. **Handle timeout** - Show timeout message with retry option
+
+## 🔍 **Debug Information Needed**
+
+Add these debug features:
+- Console logging for each processing stage
+- Processing time measurement
+- Memory usage tracking
+- Database query performance logging
+- File size and row count display
+
+## 📝 **UI/UX Requirements**
+
+- Show estimated time remaining
+- Display current processing stage
+- Add cancel button during processing
+- Show file details (size, rows, columns)
+- Provide clear success/error messages
+- Add retry functionality for failed uploads
+
+## 🚀 **Priority Order**
+
+1. **URGENT**: Fix the 25% hanging issue
+2. **HIGH**: Add proper error handling
+3. **MEDIUM**: Optimize processing performance
+4. **LOW**: Add advanced progress features
+
+Please implement these fixes immediately so the file upload actually completes and shows the dashboard with processed data.

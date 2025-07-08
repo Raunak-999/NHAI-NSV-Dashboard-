@@ -46,36 +46,90 @@ function calculateSeverity(type: string, value: number): string {
 function processExcelData(buffer: Buffer) {
   const workbook = XLSX.read(buffer, { type: 'buffer' });
   const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-  const data = XLSX.utils.sheet_to_json(worksheet);
   
-  console.log('Excel data sample:', data[0]); // Debug log
+  // Get raw data as array of arrays for better control
+  const rawData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+  console.log('Raw Excel rows:', rawData.length);
+  console.log('Sample raw row:', rawData[1] || rawData[0]);
   
-  return data.map((row: any) => {
-    // Handle multiple possible column name formats
-    const nhNumber = row['NH_Number'] || row['Highway'] || row['NH Number'] || row['nh_number'];
-    const chainageStart = parseFloat(row['Chainage_Start'] || row['Start_KM'] || row['Chainage Start'] || row['chainage_start'] || row['Start Chainage']);
-    const chainageEnd = parseFloat(row['Chainage_End'] || row['End_KM'] || row['Chainage End'] || row['chainage_end'] || row['End Chainage']);
-    const laneNumber = row['Lane'] || row['Lane_Number'] || row['lane'] || row['Lane Number'] || 'L1';
-    const latitude = parseFloat(row['Latitude'] || row['Lat'] || row['latitude'] || row['lat']);
-    const longitude = parseFloat(row['Longitude'] || row['Long'] || row['longitude'] || row['long'] || row['lng']);
-    const roughnessBI = parseFloat(row['Roughness_BI'] || row['Roughness'] || row['roughness'] || row['Roughness BI'] || row['roughness_bi']);
-    const rutDepth = parseFloat(row['Rut_Depth'] || row['RutDepth'] || row['Rut Depth'] || row['rut_depth'] || row['rutdepth']);
-    const crackArea = parseFloat(row['Crack_Area'] || row['CrackArea'] || row['Crack Area'] || row['crack_area'] || row['crackarea']);
-    const ravelling = parseFloat(row['Ravelling'] || row['ravelling']);
-
-    return {
-      nhNumber,
-      chainageStart,
-      chainageEnd,
-      laneNumber,
-      latitude,
-      longitude,
-      roughnessBI,
-      rutDepth,
-      crackArea,
-      ravelling,
-    };
-  }).filter(row => row.nhNumber && !isNaN(row.chainageStart) && !isNaN(row.chainageEnd));
+  // Find data start row (skip headers)
+  let dataStartRow = 0;
+  for (let i = 0; i < Math.min(rawData.length, 10); i++) {
+    const row = rawData[i] as any[];
+    if (row && row[0] && typeof row[0] === 'string' && row[0].toString().includes('NH')) {
+      dataStartRow = i;
+      break;
+    }
+  }
+  
+  console.log(`Data starts at row: ${dataStartRow}`);
+  const dataRows = rawData.slice(dataStartRow);
+  console.log(`Processing ${dataRows.length} data rows`);
+  
+  const processedData: any[] = [];
+  
+  for (let i = 0; i < dataRows.length; i++) {
+    const row = dataRows[i] as any[];
+    
+    // Skip empty rows
+    if (!row || !row[0] || !row[1] || !row[2]) {
+      continue;
+    }
+    
+    console.log(`Processing row ${i}:`, row.slice(0, 5));
+    
+    // Extract basic segment info
+    const nhNumber = row[0]?.toString();
+    const chainageStart = parseFloat(row[1]);
+    const chainageEnd = parseFloat(row[2]);
+    
+    if (!nhNumber || isNaN(chainageStart) || isNaN(chainageEnd)) {
+      console.log(`Skipping row ${i}: invalid basic data`);
+      continue;
+    }
+    
+    // Process each lane (L1-L4, R1-R4)
+    const lanes = ['L1', 'L2', 'L3', 'L4', 'R1', 'R2', 'R3', 'R4'];
+    
+    for (let laneIndex = 0; laneIndex < lanes.length; laneIndex++) {
+      const laneNumber = lanes[laneIndex];
+      
+      // GPS coordinates: columns 5-36 (4 coords per lane: start_lat, start_lng, end_lat, end_lng)
+      const coordStartIndex = 5 + (laneIndex * 4);
+      const latitude = parseFloat(row[coordStartIndex]) || null;
+      const longitude = parseFloat(row[coordStartIndex + 1]) || null;
+      
+      // Distress data indices based on Excel structure
+      const roughnessIndex = 31 + laneIndex; // L1 Lane Roughness BI starts at column 31
+      const rutDepthIndex = 40 + laneIndex;  // L1 Rut Depth starts at column 40
+      const crackAreaIndex = 49 + laneIndex; // L1 Crack Area starts at column 49
+      const ravellingIndex = 58 + laneIndex; // L1 Ravelling starts at column 58
+      
+      const roughnessBI = parseFloat(row[roughnessIndex]) || null;
+      const rutDepth = parseFloat(row[rutDepthIndex]) || null;
+      const crackArea = parseFloat(row[crackAreaIndex]) || null;
+      const ravelling = parseFloat(row[ravellingIndex]) || null;
+      
+      // Only include lanes with some actual data
+      if (latitude || longitude || roughnessBI || rutDepth || crackArea || ravelling) {
+        processedData.push({
+          nhNumber,
+          chainageStart,
+          chainageEnd,
+          laneNumber,
+          latitude: latitude || 28.7041, // Default Delhi coords if missing
+          longitude: longitude || 77.1025,
+          roughnessBI,
+          rutDepth,
+          crackArea,
+          ravelling,
+        });
+      }
+    }
+  }
+  
+  console.log(`Processed ${processedData.length} lane records from ${dataRows.length} rows`);
+  return processedData;
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -180,6 +234,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(segments);
     } catch (error) {
       res.status(500).json({ message: "Failed to search segments" });
+    }
+  });
+
+  // POST /api/debug-upload - Debug Excel file structure
+  app.post("/api/debug-upload", upload.single('file'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      
+      // Get both formats for debugging
+      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+      const rawData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+      
+      res.json({
+        fileName: req.file.originalname,
+        sheetNames: workbook.SheetNames,
+        totalRows: rawData.length,
+        totalColumns: rawData[0]?.length || 0,
+        firstFiveRows: rawData.slice(0, 5),
+        sampleJsonRow: jsonData[0],
+        headerRow: rawData[0],
+        firstDataRow: rawData.find(row => row[0] && row[0].toString().includes('NH')),
+        columnMapping: {
+          nhNumber: 'Column 0',
+          startChainage: 'Column 1', 
+          endChainage: 'Column 2',
+          gpsCoords: 'Columns 5-36 (4 per lane)',
+          roughness: 'Columns 31-38',
+          rutDepth: 'Columns 40-47',
+          crackArea: 'Columns 49-56',
+          ravelling: 'Columns 58-65'
+        }
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Debug failed", error: (error as Error).message });
     }
   });
 

@@ -12,6 +12,7 @@ import { DashboardStats, MapFilters } from "@/types/nsv";
 import { Construction, Bell, User, Menu, Clock, Activity, Download, FileText, BarChart3, MapPin, Smartphone } from "lucide-react";
 import { RealTimeStatus } from "@/components/real-time-status";
 import { MobileFieldMode } from "@/components/mobile-field-mode";
+import { DebugUpload } from "@/components/debug-upload";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -250,37 +251,47 @@ export default function Dashboard() {
               {/* Upload Zone */}
               <UploadZone />
 
+              {/* Debug Upload Component */}
+              <DebugUpload />
+
               {/* Upload Instructions */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Upload Instructions</CardTitle>
+                  <CardTitle>NHAI Excel File Format Guide</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <h4 className="font-medium mb-2">Required Excel Columns:</h4>
+                      <h4 className="font-medium mb-2">Expected Excel Structure:</h4>
                       <ul className="text-sm space-y-1 text-muted-foreground">
-                        <li>• NH_Number (Highway identifier)</li>
-                        <li>• Chainage_Start & Chainage_End</li>
-                        <li>• Lane (L1, L2, R1, R2, etc.)</li>
-                        <li>• Latitude & Longitude</li>
-                        <li>• Roughness_BI (mm/km)</li>
-                        <li>• Rut_Depth (mm)</li>
-                        <li>• Crack_Area (%)</li>
-                        <li>• Ravelling (%)</li>
+                        <li>• <strong>Column 0:</strong> NH Number (e.g., NH148N)</li>
+                        <li>• <strong>Columns 1-2:</strong> Start/End Chainage</li>
+                        <li>• <strong>Columns 5-36:</strong> GPS coordinates (4 per lane)</li>
+                        <li>• <strong>Columns 31-38:</strong> L1-R4 Roughness BI</li>
+                        <li>• <strong>Columns 40-47:</strong> L1-R4 Rut Depth</li>
+                        <li>• <strong>Columns 49-56:</strong> L1-R4 Crack Area</li>
+                        <li>• <strong>Columns 58-65:</strong> L1-R4 Ravelling</li>
                       </ul>
                     </div>
                     <div>
-                      <h4 className="font-medium mb-2">Processing Pipeline:</h4>
+                      <h4 className="font-medium mb-2">Processing Steps:</h4>
                       <ul className="text-sm space-y-1 text-muted-foreground">
-                        <li>• Data validation & parsing</li>
-                        <li>• Highway segment creation</li>
-                        <li>• GPS coordinate mapping</li>
-                        <li>• Threshold analysis</li>
-                        <li>• Automatic alert generation</li>
-                        <li>• Real-time dashboard updates</li>
+                        <li>• Detects data starting row automatically</li>
+                        <li>• Extracts 8 lanes per segment (L1-L4, R1-R4)</li>
+                        <li>• Maps GPS coordinates to lanes</li>
+                        <li>• Applies distress thresholds</li>
+                        <li>• Generates alerts for violations</li>
+                        <li>• Updates dashboard in real-time</li>
                       </ul>
                     </div>
+                  </div>
+                  
+                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <h5 className="font-medium text-blue-900 mb-2">Troubleshooting:</h5>
+                    <p className="text-sm text-blue-700">
+                      If your file shows "0 segments processed", use the Excel File Debugger above 
+                      to analyze the structure and ensure it matches NHAI format standards.
+                    </p>
                   </div>
                 </CardContent>
               </Card>

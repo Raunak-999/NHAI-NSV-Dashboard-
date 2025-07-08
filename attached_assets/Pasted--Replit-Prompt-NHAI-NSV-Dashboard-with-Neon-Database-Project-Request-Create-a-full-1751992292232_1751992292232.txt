@@ -1,0 +1,110 @@
+# Replit Prompt: NHAI NSV Dashboard with Neon Database
+
+## 🎯 **Project Request**
+
+Create a full-stack web application for the NHAI Innovation Hackathon 2025 that visualizes Network Survey Vehicle (NSV) pavement condition data in real-time.
+
+## 📋 **Requirements**
+
+### **Core Functionality**
+- Upload and parse NSV Excel files (highway segment data with lane-wise coordinates and distress metrics)
+- Interactive map visualization showing highway segments with color-coded distress levels
+- Real-time dashboard with charts and analytics
+- Mobile-responsive design for field inspection
+- Alert system for threshold violations
+- Database storage for persistent data
+
+### **Technical Specifications**
+- **Backend**: Node.js + Express.js + PostgreSQL (Neon database)
+- **Frontend**: React.js + Tailwind CSS + Leaflet.js (maps) + Recharts
+- **Database**: Neon PostgreSQL with proper schema for highways, segments, lanes, and alerts
+- **File Processing**: Excel/CSV upload with XLSX parsing
+- **Deployment**: Replit-ready with downloadable code for local development
+
+### **Data Structure**
+The NSV data contains:
+- Highway information (NH number, chainage, length)
+- Lane-wise GPS coordinates (L1-L4, R1-R4)
+- Pavement distress metrics: Roughness BI, Rut Depth, Crack Area, Ravelling
+- Threshold limits: Roughness (2400 mm/km), Rut Depth (5mm), Crack Area (5%), Ravelling (1%)
+
+### **Key Features**
+1. **File Upload**: Drag-and-drop Excel file processing
+2. **Interactive Map**: Highway segments with lane-wise color coding based on distress severity
+3. **Dashboard**: Summary cards, trend charts, severity distribution
+4. **Alerts**: Real-time notifications for threshold violations
+5. **Mobile UI**: Touch-optimized interface for field use
+6. **Search/Filter**: By highway, distress type, date range
+7. **Data Export**: Generate reports and download data
+
+### **Database Schema**
+```sql
+-- Highways, NSV segments, lane data, and alerts tables
+-- Proper relationships and indexes for performance
+-- Sample data insertion for testing
+```
+
+### **Project Structure**
+```
+├── server/          # Node.js backend
+│   ├── routes/      # API endpoints
+│   ├── models/      # Database connections
+│   └── app.js       # Main server file
+├── client/          # React frontend
+│   ├── src/
+│   │   ├── components/
+│   │   ├── utils/
+│   │   └── App.js
+│   └── public/
+├── .env             # Environment variables
+└── package.json     # Dependencies
+```
+
+### **Environment Setup**
+- Configure Neon PostgreSQL connection
+- Set up CORS for API access
+- Configure file upload limits
+- Environment variables for database URL, ports, etc.
+
+### **Mobile-First Design**
+- Responsive layouts for desktop, tablet, mobile
+- Touch gestures for map interaction
+- Offline capability with service workers
+- PWA features for app-like experience
+
+### **Performance Requirements**
+- Fast loading (<3 seconds)
+- Smooth map interactions
+- Efficient data processing
+- Real-time updates
+- Scalable architecture
+
+## 🎯 **Expected Deliverables**
+
+1. **Working Application**: Full-stack app running on Replit
+2. **Database Integration**: Connected to Neon PostgreSQL
+3. **Sample Data**: Pre-loaded highway segments for demonstration
+4. **Documentation**: README with setup instructions
+5. **Mobile Testing**: Verified responsive design
+6. **Downloadable Code**: GitHub integration for local development
+
+## 🔧 **Technical Notes**
+
+- Use modern React hooks and functional components
+- Implement proper error handling and validation
+- Add loading states and user feedback
+- Include security best practices
+- Optimize for both development and production
+- Ensure code is clean, commented, and maintainable
+
+## 🚀 **Success Criteria**
+
+- Upload NSV Excel file and see data in database
+- Interactive map showing highway segments with accurate coordinates
+- Color-coded visualization based on distress severity
+- Real-time alerts for threshold violations
+- Mobile-responsive interface working on all devices
+- Professional UI/UX suitable for field engineers
+- Downloadable code that runs locally with same database
+
+Please create this as a complete, production-ready application that can win the NHAI Innovation Hackathon 2025.

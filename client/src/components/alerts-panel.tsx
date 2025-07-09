@@ -7,7 +7,7 @@ import { AlertTriangle, CheckCircle, ExternalLink } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 export function AlertsPanel() {
-  const { data: alerts, isLoading } = useQuery({
+  const { data: alerts = [], isLoading } = useQuery<Alert[]>({
     queryKey: ['/api/alerts?limit=5&resolved=false'],
   });
 

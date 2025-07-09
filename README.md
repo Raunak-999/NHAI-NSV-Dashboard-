@@ -152,8 +152,3 @@ npm run dev
 - Live dashboard updates
 - Mobile-responsive, professional UI/UX
 - Scalable, type-safe, and extensible architecture
-
----
-
-## 🏆 Innovation Hackathon Ready
-This application demonstrates enterprise-grade real-time data processing, interactive visualization, and comprehensive monitoring capabilities—perfect for highway engineers and maintenance teams to monitor pavement conditions across India's highway network.

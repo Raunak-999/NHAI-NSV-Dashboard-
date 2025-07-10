@@ -71,11 +71,11 @@ export class DatabaseStorage implements IStorage {
       with: {
         highway: true,
         lanes: {
-          with: {
+          with: {    
             alerts: true,
           },
         },
-      },
+      },  
       where: filters ? and(
         filters.highwayId ? eq(segments.highwayId, filters.highwayId) : undefined,
         filters.startDate ? gte(segments.surveyDate, filters.startDate) : undefined,

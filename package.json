@@ -48,7 +48,7 @@
     "cmdk": "^1.1.1",
     "connect-pg-simple": "^10.0.0",
     "date-fns": "^3.6.0",
-    "dotenv": "^17.1.0",
+    "dotenv": "^16.3.1",
     "drizzle-orm": "^0.39.1",
     "drizzle-zod": "^0.7.0",
     "embla-carousel-react": "^8.6.0",
@@ -63,6 +63,7 @@
     "next-themes": "^0.4.6",
     "passport": "^0.7.0",
     "passport-local": "^1.0.0",
+    "pg": "^8.11.3",
     "react": "^18.3.1",
     "react-day-picker": "^8.10.1",
     "react-dom": "^18.3.1",
@@ -107,5 +108,17 @@
   },
   "optionalDependencies": {
     "bufferutil": "^4.0.8"
-  }
+  },
+  "description": "A comprehensive full-stack web application for the NHAI Innovation Hackathon 2025. This system processes Network Survey Vehicle (NSV) data to monitor highway pavement conditions across India's highway network in real time.",
+  "main": "create_sample_excel.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Raunak-999/NHAI-NSV-Dashboard-.git"
+  },
+  "keywords": [],
+  "author": "",
+  "bugs": {
+    "url": "https://github.com/Raunak-999/NHAI-NSV-Dashboard-/issues"
+  },
+  "homepage": "https://github.com/Raunak-999/NHAI-NSV-Dashboard-#readme"
 }
